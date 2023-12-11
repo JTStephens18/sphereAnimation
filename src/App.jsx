@@ -60,9 +60,10 @@ const App = () => {
       // edgesRef.current.rotation.x += rotationSpeed;
       // edgesRef.current.rotation.y += rotationSpeed;
       const time = clock.getElapsedTime();
-      // meshRef.current.material[1].uniforms.uTime.value = time;
-      meshRef.current.material[2].uniforms.uTime.value = time;
+      meshRef.current.material[1].uniforms.uTime.value = time;
+      // meshRef.current.material[2].uniforms.uTime.value = time;
       // edgesRef.current.material.uniforms.uTime.value = time;
+      meshRef.current.material[3].uniforms.uTime.value = time;
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
@@ -125,22 +126,22 @@ const App = () => {
             void main () {
               vPosition = position;
               vec3 newPos = position;
-              // newPos.xyz += sin(uTime);
               vNormal = normal;
               float scaleFactor = 0.15 * sin(uTime) + 1.15;
-              // vec4 scaledPos = modelViewMatrix * vec4(newPos, 1.0);
               vec4 scaledPos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
-              // scaledPos.xyz *= scaleFactor;
               gl_Position = projectionMatrix * scaledPos;
             }
           `,
           fragmentShader: `
           varying vec3 vNormal;
+          varying vec3 vPosition;
+          uniform float uTime;
 
           void main () {
             float r = abs(vNormal.x);
             float g = abs(vNormal.y);
             float b = abs(vNormal.z);
+            // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
             gl_FragColor = vec4(r, g, b, 1.0);
           }
         `,
@@ -206,21 +207,47 @@ const App = () => {
           // wireframe: true,
         });
 
-        // if (z > 0.5 && z < 1.5) {
-        //   icosahedronGeometry.addGroup(i, 3, 1);
-        // }
-        // if (i == 0) {
-        //   icosahedronGeometry.addGroup(i, 3, 1);
-        //   edgesGeometry.addGroup(i, 3, 1);
-        // } else {
-        //   icosahedronGeometry.addGroup(i, 3, 0);
-        //   edgesGeometry.addGroup(i, 3, 0);
-        // }
+        const newMaterial4 = new ShaderMaterial({
+          vertexShader: `
+            varying vec3 vNormal;
+            uniform float uTime;
+            varying vec3 vPosition;
+            void main () {
+              vPosition = position;
+              vec3 newPos = position;
+              vNormal = normal;
+              // float scaleFactor = 0.15 * sin(uTime) + 1.15;
+              float scaleFactor = 0.25;
+              // vec4 scaledPos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
+              vec4 scaledPos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
+              gl_Position = projectionMatrix * scaledPos;
+            }
+          `,
+          fragmentShader: `
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          uniform float uTime;
+
+          void main () {
+            float r = abs(vNormal.x);
+            float g = abs(vNormal.y);
+            float b = abs(vNormal.z);
+            // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
+            gl_FragColor = vec4(r, g, b, 1.0);
+          }
+        `,
+          side: THREE.DoubleSide,
+          uniforms: {
+            uTime: {value: 1.0},
+          },
+          wireframe: true,
+        });
 
         icosahedronGeometry.addGroup(i, 3, materialIdx);
         materials.push(newMaterial);
         materials.push(newMaterial2);
         materials.push(newMaterial3);
+        materials.push(newMaterial4);
         // materials.push(numberMaterial);
         // icosahedronGeometry.material = materials;
         icosahedronGeometry.needsUpdate = true;
@@ -583,16 +610,16 @@ const App = () => {
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
       if (mid.y > 1.5) {
+        groups[i].materialIndex = 3;
+        geometry.needsUpdate = true;
+      } else if (mid.y < 1.5 && mid.y > 1.0) {
         groups[i].materialIndex = 0;
         geometry.needsUpdate = true;
-      } else if (mid.y > 1 && mid.y < 1.5) {
+      } else if (mid.y < 1.0 && mid.y >= 0.0) {
         groups[i].materialIndex = 0;
         geometry.needsUpdate = true;
-      } else if (mid.y > 0.5 && mid.y < 1) {
-        groups[i].materialIndex = 1;
-        geometry.needsUpdate = true;
-      } else if (mid.y > 0 && mid.y < 0.5) {
-        groups[i].materialIndex = 1;
+      } else if (mid.y <= 0.0 && mid.y > -1.0) {
+        groups[i].materialIndex = 0;
         geometry.needsUpdate = true;
       }
     }
@@ -614,16 +641,6 @@ const App = () => {
         <Canvas>
           <OrbitControls />
           <axesHelper args={[5]} />
-          {/* <GeodesicPolyhedron
-            radius={2}
-            detail={1}
-            color={0x00ff00}
-            rotationSpeed={0.005}
-            wireframe={false}
-            meshRef={meshRef}
-            edgesRef={edgesRef}
-            materialIdx={1}
-          /> */}
           <GeodesicPolyhedron
             radius={2}
             detail={1}
@@ -632,8 +649,18 @@ const App = () => {
             wireframe={false}
             meshRef={meshRef}
             edgesRef={edgesRef}
-            materialIdx={2}
+            materialIdx={0}
           />
+          {/* <GeodesicPolyhedron
+            radius={2}
+            detail={1}
+            color={0x00ff00}
+            rotationSpeed={0.005}
+            wireframe={false}
+            meshRef={meshRef2}
+            edgesRef={edgesRef}
+            materialIdx={2}
+          /> */}
           {coordinates.map((coord, idx) => (
             <Circle coords={coord} key={idx} circleRef={circleRef} />
           ))}
