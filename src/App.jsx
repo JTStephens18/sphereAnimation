@@ -66,11 +66,11 @@ const App = () => {
       meshRef.current.material[2].uniforms.uTime.value = time;
       // edgesRef.current.material.uniforms.uTime.value = time;
       meshRef.current.material[3].uniforms.uTime.value = time;
-      meshRef.current.material[4].uniforms.uTime.value = time;
-      meshRef.current.material[5].uniforms.uTime.value = time;
-      meshRef.current.material[6].uniforms.uTime.value = time;
-      meshRef.current.material[7].uniforms.uTime.value = time;
-      // calculateTiming(time);
+      // meshRef.current.material[4].uniforms.uTime.value = time;
+      // meshRef.current.material[5].uniforms.uTime.value = time;
+      // meshRef.current.material[6].uniforms.uTime.value = time;
+      // meshRef.current.material[7].uniforms.uTime.value = time;
+      // calculateTiming(time, meshRef);
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
@@ -214,10 +214,54 @@ const App = () => {
           // wireframe: true,
         });
 
+        const newMaterial4 = new ShaderMaterial({
+          vertexShader: `
+          varying vec3 vNormal;
+          uniform float uTime;
+          uniform float idx;
+          varying vec3 vPosition;
+          void main () {
+            vPosition = position;
+            vNormal = normal;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            vec3 toCenter = vec3(0.0, 0.0, 0.0) - mvPosition.xyz;
+            float shrinkFactor = 0.5;
+            float scaledShrinkFactor = sin(uTime) / 2.0;
+            mvPosition.xyz += toCenter * scaledShrinkFactor;
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+          fragmentShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        uniform float uTime;
+        uniform float test;
+
+        void main () {
+          float r = abs(vNormal.x);
+          float g = abs(vNormal.y);
+          float b = abs(vNormal.z);
+          // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
+          gl_FragColor = vec4(0.0, g, 0.0, test);
+        }
+      `,
+          side: THREE.DoubleSide,
+          uniforms: {
+            uTime: {value: 1.0},
+            // idx: {value: parseFloat(j)},
+            // test: {value: parseFloat(testVal[j])},
+            test: {value: 1.0},
+          },
+          wireframe: true,
+          transparent: true,
+          depthWrite: false,
+        });
+
         icosahedronGeometry.addGroup(i, 3, materialIdx);
         materials.push(newMaterial);
         materials.push(newMaterial2);
         materials.push(newMaterial3);
+        materials.push(newMaterial4);
 
         for (let j = 0; j < 5; j++) {
           const newMaterial5 = new ShaderMaterial({
@@ -246,21 +290,22 @@ const App = () => {
               float r = abs(vNormal.x);
               float g = abs(vNormal.y);
               float b = abs(vNormal.z);
-              gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
-              // gl_FragColor = vec4(r, g, b, test);
+              // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
+              gl_FragColor = vec4(r, g, b, test);
             }
           `,
             side: THREE.DoubleSide,
             uniforms: {
               uTime: {value: 1.0},
               idx: {value: parseFloat(j)},
-              test: {value: parseFloat(testVal[j])},
+              // test: {value: parseFloat(testVal[j])},
+              test: {value: 0.5},
             },
             wireframe: true,
             transparent: true,
             depthWrite: false,
           });
-          materials.push(newMaterial5);
+          // materials.push(newMaterial5);
         }
 
         // materials.push(numberMaterial);
@@ -618,23 +663,39 @@ const App = () => {
     );
   };
 
-  const calculateTiming = (time) => {
-    // console.log(time);
-    if (time % 10 < 0.01 && time % 10 > 0.0) {
-      console.log(time);
-    }
-
-    let timerStart = 0;
-    let timerEnd = 0;
-
-    const sin = Math.sin(time);
-    if (sin > 0 && sin < 0.01) {
-      timerStart = time;
-      // console.log(time, "at 0");
-    } else if (sin < 1 && sin > 0.99) {
-      timerEnd = time;
-      // console.log(time, "at 1");
-      console.log("Final time", timerEnd - timerStart);
+  const calculateTiming = async (time, meshRef) => {
+    // console.log(groups);
+    const groups = meshRef.current.geometry.groups;
+    for (let i = 0; i < groups.length; i++) {
+      const mid = await getAvgCoords(groups[i]);
+      if (mid.y > 1.5) {
+        groups[i].materialIndex = 3;
+        groups[i].needsUpdate = true;
+        const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
+        // console.log("Sin", sin);
+        if (sin > 1.1 && sin < 1.12) {
+          console.log("Sin", sin);
+          meshRef.current.material[3].uniforms.test.value = 1.0;
+        } else if (sin < 1.1 && sin > 1.08) {
+          console.log("Sin", sin);
+          meshRef.current.material[3].uniforms.test.value = 0.0;
+        }
+      } else if (mid.y < 1.5 && mid.y > 1.0) {
+        groups[i].materialIndex = 4;
+        groups[i].needsUpdate = true;
+      } else if (mid.y < 1.0 && mid.y >= 0.0) {
+        groups[i].materialIndex = 5;
+        groups[i].needsUpdate = true;
+      } else if (mid.y <= 0.0 && mid.y > -1.0) {
+        groups[i].materialIndex = 5;
+        groups[i].needsUpdate = true;
+      } else if (mid.y < -1.0 && mid.y > -1.5) {
+        groups[i].materialIndex = 6;
+        groups[i].needsUpdate = true;
+      } else if (mid.y < -1.5) {
+        groups[i].materialIndex = 7;
+        groups[i].needsUpdate = true;
+      }
     }
   };
 
@@ -643,16 +704,18 @@ const App = () => {
     const geometry = mesh.geometry;
     const position = geometry.getAttribute("position");
     const groups = geometry.groups;
+    const tempGrouping = [];
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
       if (mid.y > 1.5) {
+        tempGrouping.push(i);
         groups[i].materialIndex = 3;
         const tempVal = testVal;
         tempVal[0] = 1.0;
         setTestVal(tempVal);
         geometry.needsUpdate = true;
       } else if (mid.y < 1.5 && mid.y > 1.0) {
-        groups[i].materialIndex = 4;
+        groups[i].materialIndex = 3;
         geometry.needsUpdate = true;
       } else if (mid.y < 1.0 && mid.y >= 0.0) {
         groups[i].materialIndex = 5;
@@ -668,6 +731,7 @@ const App = () => {
         geometry.needsUpdate = true;
       }
     }
+    console.log(tempGrouping);
   };
 
   return (
