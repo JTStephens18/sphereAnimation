@@ -65,12 +65,12 @@ const App = () => {
       // meshRef.current.material[1].uniforms.uTime.value = time;
       meshRef.current.material[2].uniforms.uTime.value = time;
       // edgesRef.current.material.uniforms.uTime.value = time;
-      meshRef.current.material[3].uniforms.uTime.value = time;
+      // meshRef.current.material[3].uniforms.uTime.value = time;
       // meshRef.current.material[4].uniforms.uTime.value = time;
       // meshRef.current.material[5].uniforms.uTime.value = time;
       // meshRef.current.material[6].uniforms.uTime.value = time;
       // meshRef.current.material[7].uniforms.uTime.value = time;
-      // calculateTiming(time, meshRef);
+      calculateTiming(time, meshRef);
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
@@ -223,12 +223,10 @@ const App = () => {
           void main () {
             vPosition = position;
             vNormal = normal;
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            vec3 toCenter = vec3(0.0, 0.0, 0.0) - mvPosition.xyz;
-            float shrinkFactor = 0.5;
-            float scaledShrinkFactor = sin(uTime) / 2.0;
-            mvPosition.xyz += toCenter * scaledShrinkFactor;
-            gl_Position = projectionMatrix * mvPosition;
+            vec3 toCenter = vec3(0.0, 0.0, 0.0) - position.xyz;
+            float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+            vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
+            gl_Position = projectionMatrix * scaledPos;
           }
         `,
           fragmentShader: `
@@ -261,7 +259,7 @@ const App = () => {
         materials.push(newMaterial);
         materials.push(newMaterial2);
         materials.push(newMaterial3);
-        materials.push(newMaterial4);
+        // materials.push(newMaterial4);
 
         for (let j = 0; j < 5; j++) {
           const newMaterial5 = new ShaderMaterial({
@@ -305,7 +303,49 @@ const App = () => {
             transparent: true,
             depthWrite: false,
           });
+
+          const shrinkMaterial = new ShaderMaterial({
+            vertexShader: `
+            varying vec3 vNormal;
+            uniform float uTime;
+            uniform float idx;
+            varying vec3 vPosition;
+            void main () {
+              vPosition = position;
+              vNormal = normal;
+              vec3 toCenter = vec3(0.0, 0.0, 0.0) - position.xyz;
+              float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+              vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
+              gl_Position = projectionMatrix * scaledPos;
+            }
+          `,
+            fragmentShader: `
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          uniform float uTime;
+          uniform float test;
+  
+          void main () {
+            float r = abs(vNormal.x);
+            float g = abs(vNormal.y);
+            float b = abs(vNormal.z);
+            // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
+            gl_FragColor = vec4(0.0, g, 0.0, test);
+          }
+        `,
+            side: THREE.DoubleSide,
+            uniforms: {
+              uTime: {value: 1.0},
+              // idx: {value: parseFloat(j)},
+              // test: {value: parseFloat(testVal[j])},
+              test: {value: 1.0},
+            },
+            wireframe: true,
+            transparent: true,
+            depthWrite: false,
+          });
           // materials.push(newMaterial5);
+          materials.push(shrinkMaterial);
         }
 
         // materials.push(numberMaterial);
@@ -672,29 +712,36 @@ const App = () => {
         groups[i].materialIndex = 3;
         groups[i].needsUpdate = true;
         const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
-        // console.log("Sin", sin);
+        // meshRef.current.material[3].uniforms.test.value = Math.sin(time);
+        meshRef.current.material[3].uniforms.uTime.value = time + mid.y;
         if (sin > 1.1 && sin < 1.12) {
-          console.log("Sin", sin);
-          meshRef.current.material[3].uniforms.test.value = 1.0;
+          // console.log("Sin", sin);
+          // meshRef.current.material[3].uniforms.test.value = 1.0;
         } else if (sin < 1.1 && sin > 1.08) {
-          console.log("Sin", sin);
-          meshRef.current.material[3].uniforms.test.value = 0.0;
+          // console.log("Sin", sin);
+          // meshRef.current.material[3].uniforms.test.value = 0.0;
         }
       } else if (mid.y < 1.5 && mid.y > 1.0) {
         groups[i].materialIndex = 4;
         groups[i].needsUpdate = true;
+        // meshRef.current.material[4].uniforms.test.value = Math.sin(time);
+        meshRef.current.material[4].uniforms.uTime.value = time + mid.y;
       } else if (mid.y < 1.0 && mid.y >= 0.0) {
         groups[i].materialIndex = 5;
         groups[i].needsUpdate = true;
+        meshRef.current.material[5].uniforms.uTime.value = time + mid.y;
       } else if (mid.y <= 0.0 && mid.y > -1.0) {
         groups[i].materialIndex = 5;
         groups[i].needsUpdate = true;
+        meshRef.current.material[5].uniforms.uTime.value = time + mid.y;
       } else if (mid.y < -1.0 && mid.y > -1.5) {
-        groups[i].materialIndex = 6;
+        groups[i].materialIndex = 4;
         groups[i].needsUpdate = true;
+        meshRef.current.material[4].uniforms.uTime.value = time + mid.y;
       } else if (mid.y < -1.5) {
-        groups[i].materialIndex = 7;
+        groups[i].materialIndex = 3;
         groups[i].needsUpdate = true;
+        meshRef.current.material[3].uniforms.uTime.value = time + mid.y;
       }
     }
   };
@@ -714,22 +761,23 @@ const App = () => {
         tempVal[0] = 1.0;
         setTestVal(tempVal);
         geometry.needsUpdate = true;
-      } else if (mid.y < 1.5 && mid.y > 1.0) {
-        groups[i].materialIndex = 3;
-        geometry.needsUpdate = true;
-      } else if (mid.y < 1.0 && mid.y >= 0.0) {
-        groups[i].materialIndex = 5;
-        geometry.needsUpdate = true;
-      } else if (mid.y <= 0.0 && mid.y > -1.0) {
-        groups[i].materialIndex = 5;
-        geometry.needsUpdate = true;
-      } else if (mid.y < -1.0 && mid.y > -1.5) {
-        groups[i].materialIndex = 6;
-        geometry.needsUpdate = true;
-      } else if (mid.y < -1.5) {
-        groups[i].materialIndex = 7;
-        geometry.needsUpdate = true;
       }
+      // else if (mid.y < 1.5 && mid.y > 1.0) {
+      //   groups[i].materialIndex = 3;
+      //   geometry.needsUpdate = true;
+      // } else if (mid.y < 1.0 && mid.y >= 0.0) {
+      //   groups[i].materialIndex = 5;
+      //   geometry.needsUpdate = true;
+      // } else if (mid.y <= 0.0 && mid.y > -1.0) {
+      //   groups[i].materialIndex = 5;
+      //   geometry.needsUpdate = true;
+      // } else if (mid.y < -1.0 && mid.y > -1.5) {
+      //   groups[i].materialIndex = 6;
+      //   geometry.needsUpdate = true;
+      // } else if (mid.y < -1.5) {
+      //   groups[i].materialIndex = 7;
+      //   geometry.needsUpdate = true;
+      // }
     }
     console.log(tempGrouping);
   };
