@@ -32,6 +32,7 @@ const App = () => {
     // [-1.09, 1.4, 0.53],
     // [-1.07, 1.07, 1.07],
     // [-1.43, 0.53, 1.09],
+    [-0.5564987262090048, 1.7731118599573772, 0.3333333333333333],
   ]);
 
   const [incIdx, setIncIdx] = useState(0);
@@ -309,14 +310,21 @@ const App = () => {
             varying vec3 vNormal;
             uniform float uTime;
             uniform float idx;
+            uniform vec3 avg;
             varying vec3 vPosition;
             void main () {
               vPosition = position;
               vNormal = normal;
-              vec3 toCenter = vec3(0.0, 0.0, 0.0) - position.xyz;
               float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-              vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
-              gl_Position = projectionMatrix * scaledPos;
+              vec3 direction = normalize(avg.xyz - position.xyz);
+              vec3 newPos = position + direction * shrinkFactor;
+              vec3 toCenter = avg.xyz - position.xyz;
+              // vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
+              vec3 scaledPos = vec3(position.x * shrinkFactor, position.y, position.z * shrinkFactor);
+              // gl_Position = projectionMatrix * scaledPos;
+              vec4 test = modelViewMatrix * vec4(scaledPos, 1.0);
+              gl_Position = projectionMatrix * test;
+              // gl_Position = projectionMatrix * modelViewMatrix * vec4(scaledPos, 1.0);
             }
           `,
             fragmentShader: `
@@ -339,6 +347,7 @@ const App = () => {
               // idx: {value: parseFloat(j)},
               // test: {value: parseFloat(testVal[j])},
               test: {value: 1.0},
+              avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
             },
             wireframe: true,
             transparent: true,
@@ -529,7 +538,7 @@ const App = () => {
     position.needsUpdate = true;
   };
 
-  const test = () => {
+  const test = async () => {
     console.log(meshRef.current);
     console.log(meshRef.current.geometry);
     console.log(edgesRef.current);
@@ -537,6 +546,12 @@ const App = () => {
     const maxPos = Math.max(...pos.array);
     console.log(maxPos);
     console.log(testVal);
+    const shape = await getGroupVertexCoords(
+      meshRef.current.geometry.groups[4]
+    );
+    console.log(shape);
+    const avg = await getAvgCoords(meshRef.current.geometry.groups[4]);
+    console.log(avg);
   };
 
   const changePosition = () => {
@@ -709,11 +724,12 @@ const App = () => {
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
       if (mid.y > 1.5) {
+        meshRef.current.material[3].uniforms.avg.value = mid;
         groups[i].materialIndex = 3;
         groups[i].needsUpdate = true;
         const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
         // meshRef.current.material[3].uniforms.test.value = Math.sin(time);
-        meshRef.current.material[3].uniforms.uTime.value = time + mid.y;
+        meshRef.current.material[3].uniforms.uTime.value = time + mid.y / 2.0;
         if (sin > 1.1 && sin < 1.12) {
           // console.log("Sin", sin);
           // meshRef.current.material[3].uniforms.test.value = 1.0;
@@ -725,23 +741,23 @@ const App = () => {
         groups[i].materialIndex = 4;
         groups[i].needsUpdate = true;
         // meshRef.current.material[4].uniforms.test.value = Math.sin(time);
-        meshRef.current.material[4].uniforms.uTime.value = time + mid.y;
+        // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
       } else if (mid.y < 1.0 && mid.y >= 0.0) {
         groups[i].materialIndex = 5;
         groups[i].needsUpdate = true;
-        meshRef.current.material[5].uniforms.uTime.value = time + mid.y;
+        // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
       } else if (mid.y <= 0.0 && mid.y > -1.0) {
         groups[i].materialIndex = 5;
         groups[i].needsUpdate = true;
-        meshRef.current.material[5].uniforms.uTime.value = time + mid.y;
+        // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
       } else if (mid.y < -1.0 && mid.y > -1.5) {
         groups[i].materialIndex = 4;
         groups[i].needsUpdate = true;
-        meshRef.current.material[4].uniforms.uTime.value = time + mid.y;
+        // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
       } else if (mid.y < -1.5) {
         groups[i].materialIndex = 3;
         groups[i].needsUpdate = true;
-        meshRef.current.material[3].uniforms.uTime.value = time + mid.y;
+        // meshRef.current.material[3].uniforms.uTime.value = time + mid.y / 2.0;
       }
     }
   };
