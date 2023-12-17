@@ -64,49 +64,17 @@ const App = () => {
       // edgesRef.current.rotation.y += rotationSpeed;
       const time = clock.getElapsedTime();
       // meshRef.current.material[1].uniforms.uTime.value = time;
-      meshRef.current.material[2].uniforms.uTime.value = time;
+      // meshRef.current.material[2].uniforms.uTime.value = time;
       // edgesRef.current.material.uniforms.uTime.value = time;
       // meshRef.current.material[3].uniforms.uTime.value = time;
       // meshRef.current.material[4].uniforms.uTime.value = time;
       // meshRef.current.material[5].uniforms.uTime.value = time;
       // meshRef.current.material[6].uniforms.uTime.value = time;
       // meshRef.current.material[7].uniforms.uTime.value = time;
-      calculateTiming(time, meshRef);
+      calculateTiming(time, meshRef, edgesRef);
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
-
-    const edgesGeometry = new EdgesGeometry(icosahedronGeometry);
-    const edgesMaterial = new LineBasicMaterial({color: 0x000000});
-    const newEdgesMaterial = new ShaderMaterial({
-      vertexShader: `
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-
-      void main() {
-        vNormal = normal;
-        vPosition = position;
-        float scale = 1.5;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position * scale, 1.0);
-      }
-    `,
-      fragmentShader: `
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      uniform float uTime;
-
-      void main() {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
-      }
-      `,
-      side: THREE.DoubleSide,
-      uniforms: {
-        uTime: {value: 1.0},
-      },
-      transparent: true,
-      depthWrite: false,
-    });
-    const edgesMesh = new LineSegments(edgesGeometry, newEdgesMaterial);
 
     const position = icosahedronGeometry.getAttribute("position");
     const materials = [];
@@ -257,9 +225,10 @@ const App = () => {
         });
 
         icosahedronGeometry.addGroup(i, 3, materialIdx);
-        materials.push(newMaterial);
-        materials.push(newMaterial2);
-        materials.push(newMaterial3);
+        // edgesGeometry.addGroup(i, 3, materialIdx);
+        // materials.push(newMaterial);
+        // materials.push(newMaterial2);
+        // materials.push(newMaterial3);
         // materials.push(newMaterial4);
 
         for (let j = 0; j < 5; j++) {
@@ -316,15 +285,15 @@ const App = () => {
               vPosition = position;
               vNormal = normal;
               float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-              vec3 direction = normalize(avg.xyz - position.xyz);
-              vec3 newPos = position + direction * shrinkFactor;
-              vec3 toCenter = avg.xyz - position.xyz;
-              // vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
-              vec3 scaledPos = vec3(position.x * shrinkFactor, position.y, position.z * shrinkFactor);
-              // gl_Position = projectionMatrix * scaledPos;
-              vec4 test = modelViewMatrix * vec4(scaledPos, 1.0);
-              gl_Position = projectionMatrix * test;
-              // gl_Position = projectionMatrix * modelViewMatrix * vec4(scaledPos, 1.0);
+              
+              vec3 scaledPosition = (position + avg / 10.0) * shrinkFactor;
+              // scaledPosition += avg;
+              vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
+              gl_Position = projectionMatrix * mvPosition;
+
+              // vec3 scaledPos = vec3(position.x * shrinkFactor, position.y, position.z * shrinkFactor);
+              // vec4 mvPosition = modelViewMatrix * vec4(scaledPos, 1.0);
+              // gl_Position = projectionMatrix * mvPosition;
             }
           `,
             fragmentShader: `
@@ -349,9 +318,9 @@ const App = () => {
               test: {value: 1.0},
               avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
             },
-            wireframe: true,
-            transparent: true,
-            depthWrite: false,
+            wireframe: wireframe,
+            // transparent: true,
+            // depthWrite: false,
           });
           // materials.push(newMaterial5);
           materials.push(shrinkMaterial);
@@ -360,10 +329,62 @@ const App = () => {
         // materials.push(numberMaterial);
         // icosahedronGeometry.material = materials;
         icosahedronGeometry.needsUpdate = true;
-        edgesGeometry.material = materials;
-        edgesGeometry.needsUpdate = true;
       }
     }
+
+    const edgesGeometry = new EdgesGeometry(icosahedronGeometry);
+    const edgesMaterial = new LineBasicMaterial({color: 0x000000});
+    const newEdgesMaterial = new ShaderMaterial({
+      vertexShader: `
+      varying vec3 vNormal;
+      uniform float uTime;
+      uniform float idx;
+      uniform vec3 avg;
+      varying vec3 vPosition;
+      void main () {
+        vPosition = position;
+        vNormal = normal;
+        float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+        
+        vec3 scaledPosition = (position + avg / 10.0) * shrinkFactor;
+        // scaledPosition += avg;
+        vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+      fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      uniform float uTime;
+
+      void main() {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      }
+      `,
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: {value: 1.0},
+        avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
+        test: {value: 1.0},
+      },
+      transparent: true,
+      depthWrite: false,
+    });
+    const edgesMesh = new LineSegments(edgesGeometry, newEdgesMaterial);
+
+    // edgesMesh.material = materials;
+    const edgesPos = edgesGeometry.getAttribute("position").count;
+    for (let k = 0; k < edgesPos; k++) {
+      if (k % 3 == 0) {
+        edgesGeometry.addGroup(k, 3, materialIdx);
+      }
+    }
+    const edgesMaterials = [];
+    for (let j = 0; j < edgesGeometry.groups.length; j++) {
+      edgesMaterials.push(newEdgesMaterial);
+    }
+    edgesMesh.material = edgesMaterials;
+    edgesGeometry.needsUpdate = true;
 
     const posAttribute = icosahedronGeometry.getAttribute("position");
 
@@ -718,46 +739,61 @@ const App = () => {
     );
   };
 
-  const calculateTiming = async (time, meshRef) => {
+  const calculateTiming = async (time, meshRef, edgesRef) => {
     // console.log(groups);
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
       if (mid.y > 1.5) {
-        meshRef.current.material[3].uniforms.avg.value = mid;
-        groups[i].materialIndex = 3;
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        // edgesRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
+        // edgesRef.current.geometry.groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
         const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
-        // meshRef.current.material[3].uniforms.test.value = Math.sin(time);
-        meshRef.current.material[3].uniforms.uTime.value = time + mid.y / 2.0;
-        if (sin > 1.1 && sin < 1.12) {
-          // console.log("Sin", sin);
-          // meshRef.current.material[3].uniforms.test.value = 1.0;
-        } else if (sin < 1.1 && sin > 1.08) {
-          // console.log("Sin", sin);
-          // meshRef.current.material[3].uniforms.test.value = 0.0;
-        }
+        // meshRef.current.material[3].uniforms.test.value = Math.sin(time) * 2.0;
+        meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 2.0;
       } else if (mid.y < 1.5 && mid.y > 1.0) {
-        groups[i].materialIndex = 4;
-        groups[i].needsUpdate = true;
+        // groups[i].materialIndex = 4;
+        // groups[i].needsUpdate = true;
         // meshRef.current.material[4].uniforms.test.value = Math.sin(time);
         // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
+
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
+        groups[i].needsUpdate = true;
       } else if (mid.y < 1.0 && mid.y >= 0.0) {
-        groups[i].materialIndex = 5;
-        groups[i].needsUpdate = true;
+        // groups[i].materialIndex = 5;
+        // groups[i].needsUpdate = true;
         // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
+
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
+        groups[i].needsUpdate = true;
       } else if (mid.y <= 0.0 && mid.y > -1.0) {
-        groups[i].materialIndex = 5;
-        groups[i].needsUpdate = true;
+        // groups[i].materialIndex = 5;
+        // groups[i].needsUpdate = true;
         // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
+
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
+        groups[i].needsUpdate = true;
       } else if (mid.y < -1.0 && mid.y > -1.5) {
-        groups[i].materialIndex = 4;
-        groups[i].needsUpdate = true;
+        // groups[i].materialIndex = 4;
+        // groups[i].needsUpdate = true;
         // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
-      } else if (mid.y < -1.5) {
-        groups[i].materialIndex = 3;
+
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
+      } else if (mid.y < -1.5) {
+        // groups[i].materialIndex = 3;
+        // groups[i].needsUpdate = true;
         // meshRef.current.material[3].uniforms.uTime.value = time + mid.y / 2.0;
+
+        meshRef.current.material[i].uniforms.avg.value = mid;
+        groups[i].materialIndex = i;
+        groups[i].needsUpdate = true;
       }
     }
   };
@@ -822,6 +858,16 @@ const App = () => {
             wireframe={false}
             meshRef={meshRef}
             edgesRef={edgesRef}
+            materialIdx={1}
+          />
+          <GeodesicPolyhedron
+            radius={2.01}
+            detail={1}
+            color={0x00ff00}
+            rotationSpeed={0.005}
+            wireframe={true}
+            meshRef={meshRef2}
+            edgesRef={edgesRef2}
             materialIdx={1}
           />
           {/* <GeodesicPolyhedron
