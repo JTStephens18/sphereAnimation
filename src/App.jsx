@@ -287,11 +287,9 @@ const App = () => {
               vPosition = position;
               vNormal = normal;
               // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-              float shrinkFactor = cos(uTime);
+              float shrinkFactor = 0.75 * cos(2.0 * uTime) + 0.25;
               
               // vec3 scaledPosition = (position);
-
-              float xDifference = position.x - avg.x;
               vec3 scaledPosition = vec3(mix(position.x, avg.x, max(0.0005, shrinkFactor)), mix(position.y, avg.y, max(0.0005, shrinkFactor)), mix(position.z, avg.z, max(.0005, shrinkFactor)));
 
               // scaledPosition += avg;
