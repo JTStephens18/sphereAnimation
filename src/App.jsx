@@ -281,14 +281,21 @@ const App = () => {
             uniform float idx;
             uniform vec3 avg;
             varying vec3 vPosition;
+            varying vec2 vUv;
             void main () {
+              vUv = uv;
               vPosition = position;
               vNormal = normal;
-              float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+              // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+              float shrinkFactor = cos(uTime);
               
-              vec3 scaledPosition = (position) * shrinkFactor;
+              // vec3 scaledPosition = (position);
+
+              float xDifference = position.x - avg.x;
+              vec3 scaledPosition = vec3(mix(position.x, avg.x, max(0.0005, shrinkFactor)), mix(position.y, avg.y, max(0.0005, shrinkFactor)), mix(position.z, avg.z, max(.0005, shrinkFactor)));
+
               // scaledPosition += avg;
-              scaledPosition += avg / sin(uTime);
+              // scaledPosition += avg / sin(uTime);
               vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
               gl_Position = projectionMatrix * mvPosition;
 
@@ -300,6 +307,7 @@ const App = () => {
             fragmentShader: `
           varying vec3 vNormal;
           varying vec3 vPosition;
+          varying vec2 vUv;
           uniform float uTime;
           uniform float test;
   
@@ -741,6 +749,7 @@ const App = () => {
   };
 
   const calculateTiming = async (time, meshRef, edgesRef) => {
+    // console.log(Math.cos(time));
     // console.log(groups);
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
