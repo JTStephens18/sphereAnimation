@@ -286,8 +286,9 @@ const App = () => {
               vNormal = normal;
               float shrinkFactor = 0.25 * sin(uTime) + 1.025;
               
-              vec3 scaledPosition = (position + avg / 10.0) * shrinkFactor;
+              vec3 scaledPosition = (position) * shrinkFactor;
               // scaledPosition += avg;
+              scaledPosition += avg / sin(uTime);
               vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
               gl_Position = projectionMatrix * mvPosition;
 
