@@ -763,6 +763,7 @@ const App = () => {
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
+      meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
       if (mid.y > 1.5) {
         meshRef.current.material[i].uniforms.avg.value = mid;
         // edgesRef.current.material[i].uniforms.avg.value = mid;
@@ -771,7 +772,6 @@ const App = () => {
         groups[i].needsUpdate = true;
         const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
         // meshRef.current.material[3].uniforms.test.value = Math.sin(time) * 2.0;
-        meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 2.0;
       } else if (mid.y < 1.5 && mid.y > 1.0) {
         // groups[i].materialIndex = 4;
         // groups[i].needsUpdate = true;
@@ -879,7 +879,7 @@ const App = () => {
             edgesRef={edgesRef}
             materialIdx={1}
           />
-          <GeodesicPolyhedron
+          {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
             color={0x00ff00}
@@ -888,7 +888,7 @@ const App = () => {
             meshRef={meshRef2}
             edgesRef={edgesRef2}
             materialIdx={1}
-          />
+          /> */}
           {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
