@@ -287,10 +287,12 @@ const App = () => {
               vPosition = position;
               vNormal = normal;
               // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-              float shrinkFactor = 0.75 * cos(2.0 * uTime) + 0.25;
+              float shrinkFactor = 0.75 * cos(3.0 * uTime) + 0.75;
               
               // vec3 scaledPosition = (position);
-              vec3 scaledPosition = vec3(mix(position.x, avg.x, max(0.0005, shrinkFactor)), mix(position.y, avg.y, max(0.0005, shrinkFactor)), mix(position.z, avg.z, max(.0005, shrinkFactor)));
+              // vec3 scaledPosition = vec3(mix(position.x, avg.x, max(0.0005, shrinkFactor)), mix(position.y, avg.y, max(0.0005, shrinkFactor)), mix(position.z, avg.z, max(.0005, shrinkFactor)));
+              vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+
 
               // scaledPosition += avg;
               // scaledPosition += avg / sin(uTime);
@@ -580,6 +582,8 @@ const App = () => {
     console.log(shape);
     const avg = await getAvgCoords(meshRef.current.geometry.groups[4]);
     console.log(avg);
+    const weight = 0.75 * Math.cos(2.0 * clock.getElapsedTime()) + 0.25;
+    mixFunc(shape[0][0], avg.x, weight);
   };
 
   const changePosition = () => {
@@ -727,6 +731,13 @@ const App = () => {
     return averages;
   };
 
+  const mixFunc = (x, y, weight) => {
+    const max = Math.max(0.005, weight);
+    console.log(max);
+    const val = x * (1 - weight) + y * weight;
+    console.log(val);
+  };
+
   const Circle = ({coords, circleRef}) => {
     const x = coords[0];
     const y = coords[1];
@@ -869,7 +880,7 @@ const App = () => {
             materialIdx={1}
           />
           <GeodesicPolyhedron
-            radius={2.01}
+            radius={2}
             detail={1}
             color={0x00ff00}
             rotationSpeed={0.005}
