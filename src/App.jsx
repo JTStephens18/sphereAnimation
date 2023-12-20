@@ -83,50 +83,6 @@ const App = () => {
         const x = position.getX(i);
         const y = position.getY(i);
         const z = position.getZ(i);
-        const newMaterial = new MeshBasicMaterial({
-          // wireframe: true,
-          color: "yellow",
-          side: THREE.DoubleSide,
-        });
-
-        // const newMaterial2 = new MeshBasicMaterial({
-        //   wireframe: false,
-        //   color: "red",
-        //   side: THREE.DoubleSide,
-        // });
-        const newMaterial2 = new ShaderMaterial({
-          vertexShader: `
-            varying vec3 vNormal;
-            uniform float uTime;
-            varying vec3 vPosition;
-            void main () {
-              vPosition = position;
-              vec3 newPos = position;
-              vNormal = normal;
-              float scaleFactor = 0.15 * sin(uTime) + 1.15;
-              vec4 scaledPos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
-              gl_Position = projectionMatrix * scaledPos;
-            }
-          `,
-          fragmentShader: `
-          varying vec3 vNormal;
-          varying vec3 vPosition;
-          uniform float uTime;
-
-          void main () {
-            float r = abs(vNormal.x);
-            float g = abs(vNormal.y);
-            float b = abs(vNormal.z);
-            // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
-            gl_FragColor = vec4(r, g, b, 1.0);
-          }
-        `,
-          side: THREE.DoubleSide,
-          uniforms: {
-            uTime: {value: 1.0},
-          },
-          wireframe: true,
-        });
 
         const newMaterial3 = new ShaderMaterial({
           vertexShader: `
@@ -148,31 +104,6 @@ const App = () => {
 
             void main() {
               gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
-              // if(vPosition.y > 1.5) {
-              //   gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + vPosition.y) / 0.25)));
-              //   // gl_FragColor = vec4(1.0, 0.0, 0.0, sin((uTime + 2.0) / 0.25));
-              // } else if (vPosition.y > 1.0 && vPosition.y < 1.5) {
-              //   gl_FragColor = vec4(0.0, 1.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + 1.90) / 0.25)));
-              //   // gl_FragColor = vec4(0.0, 1.0, 0.0, sin((uTime + 1.75) / 0.25));
-              // } else if (vPosition.y > 0.5 && vPosition.y < 1.0) {
-              //   gl_FragColor = vec4(0.0, 0.0, 1.0, smoothstep(0.0, 1.0, sin((uTime + 1.8) / 0.25)));
-              //   // gl_FragColor = vec4(0.0, 0.0, 1.0, sin((uTime + 1.5) / 0.25));
-              // } else if (vPosition.y > 0.0 && vPosition.y < 0.5) {
-              //   gl_FragColor = vec4(1.0, 1.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + 1.7) / 0.25)));
-              //   // gl_FragColor = vec4(1.0, 1.0, 0.0, sin((uTime + 1.25) / 0.25));
-              // } else if (vPosition.y > -0.5 && vPosition.y < 0.0){
-              //   gl_FragColor = vec4(0.0, 0.0, 1.0, smoothstep(0.0, 1.0, sin((uTime + 1.6) / 0.25)));
-              //   // gl_FragColor = vec4(0.0, 0.0, 1.0, sin((uTime + 1.0) / 0.25));
-              // } else if (vPosition.y > -1.0 && vPosition.y < -0.5) {
-              //   gl_FragColor = vec4(0.0, 1.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + 1.5) / 0.25)));
-              //   // gl_FragColor = vec4(0.0, 1.0, 0.0, sin((uTime + 0.75) / 0.25));
-              // } else if (vPosition.y > -1.5 && vPosition.y < -1.0) {
-              //   gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(0.0, 1.0, sin((uTime + 1.4) / 0.25 )));
-              //   // gl_FragColor = vec4(1.0, 0.0, 0.0, sin((uTime + 0.5) / 0.25 ));
-              // } else {
-              //   gl_FragColor = vec4(0.5, 0.5, 0.5, smoothstep(0.0, 1.0, sin((uTime + 1.3) / 0.25)));
-              //   // gl_FragColor = vec4(0.5, 0.5, 0.5, sin((uTime + 0.25) / 0.25));
-              // }
             }
           `,
           side: THREE.DoubleSide,
@@ -186,13 +117,9 @@ const App = () => {
         });
 
         icosahedronGeometry.addGroup(i, 3, materialIdx);
-        // edgesGeometry.addGroup(i, 3, materialIdx);
-        // materials.push(newMaterial);
-        // materials.push(newMaterial2);
         if (materialIdx != 1) {
           materials.push(newMaterial3);
         }
-        // materials.push(newMaterial4);
 
         for (let j = 0; j < 1; j++) {
           const shrinkMaterial = new ShaderMaterial({
@@ -319,13 +246,7 @@ const App = () => {
     edgesMesh.material = edgesMaterials;
     edgesGeometry.needsUpdate = true;
 
-    const posAttribute = icosahedronGeometry.getAttribute("position");
-
-    const icosahedronGeometryMesh = new Mesh(
-      icosahedronGeometry,
-      // icosahedronGeometryMaterial
-      materials
-    );
+    const icosahedronGeometryMesh = new Mesh(icosahedronGeometry, materials);
 
     return (
       <group>
@@ -666,11 +587,8 @@ const App = () => {
   };
 
   const calculateTiming = async (time, meshRef, materialIdx) => {
-    // console.log(Math.cos(time));
-    // console.log(groups);
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
-      // console.log(materialIdx, i);
       const mid = await getAvgCoords(groups[i]);
       if (materialIdx == 1) {
         meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
@@ -679,50 +597,25 @@ const App = () => {
       }
       if (mid.y > 1.5) {
         meshRef.current.material[i].uniforms.avg.value = mid;
-        // edgesRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
-        // edgesRef.current.geometry.groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
-        const sin = 0.15 * Math.sin((time + mid.y) / 0.75) + 1.15;
-        // meshRef.current.material[3].uniforms.test.value = Math.sin(time) * 2.0;
       } else if (mid.y < 1.5 && mid.y > 1.0) {
-        // groups[i].materialIndex = 4;
-        // groups[i].needsUpdate = true;
-        // meshRef.current.material[4].uniforms.test.value = Math.sin(time);
-        // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
-
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
       } else if (mid.y < 1.0 && mid.y >= 0.0) {
-        // groups[i].materialIndex = 5;
-        // groups[i].needsUpdate = true;
-        // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
-
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
       } else if (mid.y <= 0.0 && mid.y > -1.0) {
-        // groups[i].materialIndex = 5;
-        // groups[i].needsUpdate = true;
-        // meshRef.current.material[5].uniforms.uTime.value = time + mid.y * 4.0;
-
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
       } else if (mid.y < -1.0 && mid.y > -1.5) {
-        // groups[i].materialIndex = 4;
-        // groups[i].needsUpdate = true;
-        // meshRef.current.material[4].uniforms.uTime.value = time + mid.y * 2.0;
-
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
       } else if (mid.y < -1.5) {
-        // groups[i].materialIndex = 3;
-        // groups[i].needsUpdate = true;
-        // meshRef.current.material[3].uniforms.uTime.value = time + mid.y / 2.0;
-
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
         groups[i].needsUpdate = true;
@@ -746,22 +639,6 @@ const App = () => {
         setTestVal(tempVal);
         geometry.needsUpdate = true;
       }
-      // else if (mid.y < 1.5 && mid.y > 1.0) {
-      //   groups[i].materialIndex = 3;
-      //   geometry.needsUpdate = true;
-      // } else if (mid.y < 1.0 && mid.y >= 0.0) {
-      //   groups[i].materialIndex = 5;
-      //   geometry.needsUpdate = true;
-      // } else if (mid.y <= 0.0 && mid.y > -1.0) {
-      //   groups[i].materialIndex = 5;
-      //   geometry.needsUpdate = true;
-      // } else if (mid.y < -1.0 && mid.y > -1.5) {
-      //   groups[i].materialIndex = 6;
-      //   geometry.needsUpdate = true;
-      // } else if (mid.y < -1.5) {
-      //   groups[i].materialIndex = 7;
-      //   geometry.needsUpdate = true;
-      // }
     }
     console.log(tempGrouping);
   };
