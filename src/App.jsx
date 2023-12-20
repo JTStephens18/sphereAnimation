@@ -71,7 +71,7 @@ const App = () => {
       // meshRef.current.material[5].uniforms.uTime.value = time;
       // meshRef.current.material[6].uniforms.uTime.value = time;
       // meshRef.current.material[7].uniforms.uTime.value = time;
-      calculateTiming(time, meshRef, edgesRef);
+      calculateTiming(time, meshRef, materialIdx);
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
@@ -141,6 +141,7 @@ const App = () => {
             }
           `,
           fragmentShader: `
+          // Red
             varying vec3 vNormal;
             varying vec3 vPosition;
             uniform float uTime;
@@ -177,103 +178,23 @@ const App = () => {
           side: THREE.DoubleSide,
           uniforms: {
             uTime: {value: 1.0},
+            avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
           },
           transparent: true,
           depthWrite: false,
           // wireframe: true,
         });
 
-        const newMaterial4 = new ShaderMaterial({
-          vertexShader: `
-          varying vec3 vNormal;
-          uniform float uTime;
-          uniform float idx;
-          varying vec3 vPosition;
-          void main () {
-            vPosition = position;
-            vNormal = normal;
-            vec3 toCenter = vec3(0.0, 0.0, 0.0) - position.xyz;
-            float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-            vec4 scaledPos = modelViewMatrix * vec4(position * shrinkFactor, 1.0);
-            gl_Position = projectionMatrix * scaledPos;
-          }
-        `,
-          fragmentShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        uniform float uTime;
-        uniform float test;
-
-        void main () {
-          float r = abs(vNormal.x);
-          float g = abs(vNormal.y);
-          float b = abs(vNormal.z);
-          // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
-          gl_FragColor = vec4(0.0, g, 0.0, test);
-        }
-      `,
-          side: THREE.DoubleSide,
-          uniforms: {
-            uTime: {value: 1.0},
-            // idx: {value: parseFloat(j)},
-            // test: {value: parseFloat(testVal[j])},
-            test: {value: 1.0},
-          },
-          wireframe: true,
-          transparent: true,
-          depthWrite: false,
-        });
-
         icosahedronGeometry.addGroup(i, 3, materialIdx);
         // edgesGeometry.addGroup(i, 3, materialIdx);
         // materials.push(newMaterial);
         // materials.push(newMaterial2);
-        // materials.push(newMaterial3);
+        if (materialIdx != 1) {
+          materials.push(newMaterial3);
+        }
         // materials.push(newMaterial4);
 
-        for (let j = 0; j < 5; j++) {
-          const newMaterial5 = new ShaderMaterial({
-            vertexShader: `
-              varying vec3 vNormal;
-              uniform float uTime;
-              uniform float idx;
-              varying vec3 vPosition;
-              void main () {
-                vPosition = position;
-                vec3 newPos = position;
-                vNormal = normal;
-                float scaleFactor = 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15;
-                // float scaleFactor = 0.25;
-                vec4 scaledPos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
-                gl_Position = projectionMatrix * scaledPos;
-              }
-            `,
-            fragmentShader: `
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            uniform float uTime;
-            uniform float test;
-  
-            void main () {
-              float r = abs(vNormal.x);
-              float g = abs(vNormal.y);
-              float b = abs(vNormal.z);
-              // gl_FragColor = vec4(r, g, b, smoothstep(0.0, 1.0, 0.15 * sin((uTime + vPosition.y) / 0.75) + 1.15));
-              gl_FragColor = vec4(r, g, b, test);
-            }
-          `,
-            side: THREE.DoubleSide,
-            uniforms: {
-              uTime: {value: 1.0},
-              idx: {value: parseFloat(j)},
-              // test: {value: parseFloat(testVal[j])},
-              test: {value: 0.5},
-            },
-            wireframe: true,
-            transparent: true,
-            depthWrite: false,
-          });
-
+        for (let j = 0; j < 1; j++) {
           const shrinkMaterial = new ShaderMaterial({
             vertexShader: `
             varying vec3 vNormal;
@@ -305,6 +226,7 @@ const App = () => {
             }
           `,
             fragmentShader: `
+            // Shrink
           varying vec3 vNormal;
           varying vec3 vPosition;
           varying vec2 vUv;
@@ -332,7 +254,9 @@ const App = () => {
             // depthWrite: false,
           });
           // materials.push(newMaterial5);
-          materials.push(shrinkMaterial);
+          if (materialIdx == 1) {
+            materials.push(shrinkMaterial);
+          }
         }
 
         // materials.push(numberMaterial);
@@ -396,25 +320,6 @@ const App = () => {
     edgesGeometry.needsUpdate = true;
 
     const posAttribute = icosahedronGeometry.getAttribute("position");
-
-    const colors = [];
-    const colorNew = new THREE.Color();
-
-    for (let i = 0; i < posAttribute.count; i++) {
-      colorNew.set(0xffffff * Math.random());
-      const opacity = Math.random() * 0.7 + 0.7;
-
-      // Define same color for each vertex of a triangle
-      colors.push(colorNew.r, colorNew.g, colorNew.b, opacity);
-      colors.push(colorNew.r, colorNew.g, colorNew.b, opacity);
-      colors.push(colorNew.r, colorNew.g, colorNew.b, opacity);
-      colors.push(colorNew.r, colorNew.g, colorNew.b, opacity);
-    }
-
-    // icosahedronGeometry.setAttribute(
-    //   "color",
-    //   new BufferAttribute(new Float32Array(colors), 4)
-    // );
 
     const icosahedronGeometryMesh = new Mesh(
       icosahedronGeometry,
@@ -515,6 +420,7 @@ const App = () => {
             }
           `,
           fragmentShader: `
+          // Red
           varying vec3 vNormal;
 
           void main () {
@@ -584,6 +490,8 @@ const App = () => {
     console.log(avg);
     const weight = 0.75 * Math.cos(2.0 * clock.getElapsedTime()) + 0.25;
     mixFunc(shape[0][0], avg.x, weight);
+
+    console.log(meshRef2.current);
   };
 
   const changePosition = () => {
@@ -757,13 +665,18 @@ const App = () => {
     );
   };
 
-  const calculateTiming = async (time, meshRef, edgesRef) => {
+  const calculateTiming = async (time, meshRef, materialIdx) => {
     // console.log(Math.cos(time));
     // console.log(groups);
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
+      // console.log(materialIdx, i);
       const mid = await getAvgCoords(groups[i]);
-      meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
+      if (materialIdx == 1) {
+        meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
+      } else {
+        meshRef.current.material[i].uniforms.uTime.value = time;
+      }
       if (mid.y > 1.5) {
         meshRef.current.material[i].uniforms.avg.value = mid;
         // edgesRef.current.material[i].uniforms.avg.value = mid;
@@ -897,7 +810,7 @@ const App = () => {
             wireframe={false}
             meshRef={meshRef2}
             edgesRef={edgesRef}
-            materialIdx={2}
+            materialIdx={-1}
           /> */}
           {coordinates.map((coord, idx) => (
             <Circle coords={coord} key={idx} circleRef={circleRef} />
