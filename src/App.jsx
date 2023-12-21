@@ -70,7 +70,7 @@ const App = () => {
       // meshRef.current.material[5].uniforms.uTime.value = time;
       // meshRef.current.material[6].uniforms.uTime.value = time;
       // meshRef.current.material[7].uniforms.uTime.value = time;
-      // calculateTiming(time, meshRef, materialIdx);
+      calculateTiming(time, meshRef, materialIdx);
     });
 
     const icosahedronGeometry = new IcosahedronGeometry(radius, detail);
@@ -91,19 +91,84 @@ const App = () => {
 
         const animateMaterial = new ShaderMaterial({
           vertexShader: `
-            void main () {
+          uniform float uTime;
+          uniform float idx;
+          uniform vec3 avg;
+          varying vec3 vPosition;
 
+          mat4 rotateX(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+            return mat4(
+              vec4(1,0,0,0),
+              vec4(0,c,-s, 0),
+              vec4(0,s,c, 0),
+              vec4(0,0,0,1)
+            );
+          }
+
+          mat4 rotateY(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+            return mat4(
+              vec4(c, 0, s, 0),
+              vec4(0,1,0, 0),
+              vec4(-s, 0, c, 0),
+              vec4(0,0,0,1)
+            );
+          }
+
+          mat4 rotateZ(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+            return mat4(
+              vec4(c, -s, 0, 0),
+              vec4(s, c, 0, 0),
+              vec4(0,0,1,0),
+              vec4(0,0,0,1)
+            );
+          }
+
+          void main () {
+            vPosition = position;
+
+            // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+            float shrinkFactor = 0.75 * cos(3.0 * uTime) + 0.75;
+
+            float rotateFactor = 0.25 * sin(uTime) / 2.0 + 1.0;
+
+            float sign = 1.0;
+            if(avg.y < 0.0) {
+              sign = -1.0;
             }
+
+            mat4 transformX = rotateX(sin(uTime));
+            mat4 transformY = rotateY(0.0);
+            mat4 transformZ = rotateZ(0.0);
+            mat4 transform = transformX * transformY * transformZ;
+            
+            // vec3 scaledPosition = (position);
+            vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y + rotateFactor * sign, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+            vec3 rotatePosition = position * rotateFactor;
+            vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+            if(avg.x > 1.5) {
+              mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
+            } 
+            gl_Position = projectionMatrix * mvPosition;
+          }
           `,
           fragmentShader: `
             void main() {
-              
+              gl_FragColor = vec4(0.5, 0.5, 0.0, 0.8);
             }
           `,
           side: THREE.DoubleSide,
           uniforms: {
             uTime: {value: 1.0},
+            avg: {value: {x: 0, y: 0, z: 0}},
           },
+          wireframe: true,
         });
 
         const newMaterial3 = new ShaderMaterial({
@@ -140,7 +205,7 @@ const App = () => {
 
         icosahedronGeometry.addGroup(i, 3, materialIdx);
         if (materialIdx != 1) {
-          materials.push(plainMaterial);
+          materials.push(animateMaterial);
         }
 
         const shrinkMaterial = new ShaderMaterial({
@@ -606,11 +671,12 @@ const App = () => {
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
       const mid = await getAvgCoords(groups[i]);
-      if (materialIdx == 1) {
-        meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
-      } else {
-        meshRef.current.material[i].uniforms.uTime.value = time;
-      }
+      meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
+      // if (materialIdx == 1) {
+      //   meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
+      // } else {
+      //   meshRef.current.material[i].uniforms.uTime.value = time;
+      // }
       if (mid.y > 1.5) {
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
