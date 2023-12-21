@@ -129,6 +129,19 @@ const App = () => {
             );
           }
 
+          mat4 rotateArbitrary(float theta, float X, float Y, float Z) {
+            float c = cos(theta);
+            float s = sin(theta);
+            float t = 1.0 - cos(theta);
+
+            return mat4(
+              vec4(t*X*X + c, t*X*Y - s*Z, t*X*Z + s*Y, 0),
+              vec4(t*X*Y + s*Z, t*Y*Y + c, t*Y*Z - s*X, 0),
+              vec4(t*X*Z - s*Y, t*Y*Z + s*X, t*Z*Z + c, 0),
+              vec4(0,0,0,1)
+            );
+          }
+
           void main () {
             vPosition = position;
 
@@ -145,7 +158,8 @@ const App = () => {
             mat4 transformX = rotateX(sin(uTime));
             mat4 transformY = rotateY(0.0);
             mat4 transformZ = rotateZ(0.0);
-            mat4 transform = transformX * transformY * transformZ;
+            // mat4 transform = transformX * transformY * transformZ;
+            mat4 transform = rotateArbitrary(sin(uTime), avg.x, avg.y, avg.z);
             
             // vec3 scaledPosition = (position);
             vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
