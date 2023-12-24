@@ -95,6 +95,7 @@ const App = () => {
           uniform float idx;
           uniform vec3 avg;
           varying vec3 vPosition;
+          varying vec3 vNormal;
 
           mat4 rotateX(float theta) {
             float c = cos(theta);
@@ -129,6 +130,16 @@ const App = () => {
             );
           }
 
+          mat3 testRotation(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+            return mat3(
+              c, -s, 0,
+              s, c, 0,
+              0, 0, 1
+            );
+          }
+
           mat4 rotateArbitrary(float theta, float X, float Y, float Z) {
             float c = cos(theta);
             float s = sin(theta);
@@ -144,37 +155,51 @@ const App = () => {
 
           void main () {
             vPosition = position;
+            vNormal = normal;
+
+            float maxVal = max(abs(vPosition.x), abs(vPosition.y));
+            maxVal = max(abs(vPosition.z), maxVal);
 
             // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
             float shrinkFactor = 0.75 * cos(3.0 * uTime) + 0.75;
 
             float rotateFactor = 0.25 * sin(uTime) / 2.0 + 1.0;
-
+            // rotateFactor = rotateFactor*maxVal;
             float sign = 1.0;
             if(avg.y < 0.0) {
               sign = -1.0;
             }
 
-            mat4 transformX = rotateX(sin(uTime));
+            vec3 rotatedPos = testRotation(rotateFactor) * (position - avg) + avg;
+
+            mat4 transformX = rotateX(0.0);
             mat4 transformY = rotateY(0.0);
             mat4 transformZ = rotateZ(0.0);
-            // mat4 transform = transformX * transformY * transformZ;
-            mat4 transform = rotateArbitrary(sin(uTime), avg.x, avg.y, avg.z);
+            mat4 transform = transformX * transformY * transformZ;
+            // mat4 transform = rotateArbitrary(sin(uTime), avg.x, avg.y, avg.z);
             
             // vec3 scaledPosition = (position);
             vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y + rotateFactor * sign, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            vec3 rotatePosition = position * rotateFactor;
+            vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotatedPos.x, min(1.0, shrinkFactor)), mix(position.y, avg.y + rotatedPos.y, min(1.0, shrinkFactor)), mix(position.z, avg.z + rotatedPos.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = rotatedPos;
             vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
             if(avg.x > 1.5) {
+              // mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
               mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
             } 
             gl_Position = projectionMatrix * mvPosition;
           }
           `,
           fragmentShader: `
+            varying vec3 vNormal;
             void main() {
-              gl_FragColor = vec4(0.5, 0.5, 0.0, 0.8);
+              float r = abs(vNormal.x);
+              float g = abs(vNormal.y);
+              float b = abs(vNormal.z);
+              gl_FragColor = vec4(r, g, b, 1.0);
+              // gl_FragColor = vec4(0.5, 0.5, 0.0, 0.8);
+
             }
           `,
           side: THREE.DoubleSide,
