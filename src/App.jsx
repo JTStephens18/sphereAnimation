@@ -94,6 +94,7 @@ const App = () => {
           uniform float uTime;
           uniform float idx;
           uniform vec3 avg;
+
           varying vec3 vPosition;
           varying vec3 vNormal;
 
@@ -140,6 +141,16 @@ const App = () => {
             );
           }
 
+          mat3 testRotateX(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+            return mat3(
+              vec3(1,0,0),
+              vec3(0,c,-s),
+              vec3(0,s,c)
+            );
+          }
+
           mat4 rotateArbitrary(float theta, float X, float Y, float Z) {
             float c = cos(theta);
             float s = sin(theta);
@@ -151,6 +162,15 @@ const App = () => {
               vec4(t*X*Z - s*Y, t*Y*Z + s*X, t*Z*Z + c, 0),
               vec4(0,0,0,1)
             );
+          }
+
+          float getRotatePos(vec3 rotatePosition) {
+            return rotatePosition.x;
+            // if(rotatePosition.x > 2.0) {
+            //   return 1.0;
+            // } else {
+            //   return rotatePosition.x;
+            // }
           }
 
           void main () {
@@ -170,7 +190,9 @@ const App = () => {
               sign = -1.0;
             }
 
-            vec3 rotatedPos = testRotation(rotateFactor) * (position - avg) + avg;
+            vec3 rotatedPos = (position - avg) + avg;
+            vec3 zRotPos = testRotation(0.25) * (position - avg) + avg;
+            
 
             mat4 transformX = rotateX(0.0);
             mat4 transformY = rotateY(0.0);
@@ -180,19 +202,21 @@ const App = () => {
             
             // vec3 scaledPosition = (position);
             vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotatedPos.x, min(1.0, shrinkFactor)), mix(position.y, avg.y + rotatedPos.y, min(1.0, shrinkFactor)), mix(position.z, avg.z + rotatedPos.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = rotatedPos;
+            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+            vec3 rotatePosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = position;
             vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
             if(avg.x > 1.5) {
               // mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
-              mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
+              mvPosition = modelViewMatrix * vec4(rotatePosition, 1.0);
             } 
             gl_Position = projectionMatrix * mvPosition;
           }
           `,
           fragmentShader: `
             varying vec3 vNormal;
+            uniform float uTime;
+            uniform vec3 avg;
             void main() {
               float r = abs(vNormal.x);
               float g = abs(vNormal.y);
