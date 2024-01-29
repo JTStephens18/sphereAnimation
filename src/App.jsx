@@ -169,20 +169,8 @@ const App = () => {
             rotatedPos = rotatedPos + avg;
             if(rotatedPos.x <= position.x) {
               rotatedPos.x = position.x;
-              rotatedPos.y = position.y;
-              rotatedPos.z = position.z;
-            }
-            else if(rotatedPos.y <= position.y) {
               // rotatedPos.y = position.y;
-              rotatedPos.x = position.x;
-              rotatedPos.y = position.y;
-              rotatedPos.z = position.z;
-            }
-            else if(rotatedPos.z <= position.z) {
               // rotatedPos.z = position.z;
-              rotatedPos.x = position.x;
-              rotatedPos.y = position.y;
-              rotatedPos.z = position.z;
             }
             return rotatedPos;
           }
@@ -195,7 +183,10 @@ const App = () => {
             maxVal = max(abs(vPosition.z), maxVal);
 
             // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-            float shrinkFactor = 0.75 * cos(uTime / 3.0) + 0.75;
+            // float shrinkFactor = 0.75 * cos(uTime / 3.0) + 0.75;
+            float shrinkFactor = sin(uTime) + 1.0;
+            // float negShrinkFactor = -sin((uTime)) + 1.0;
+            float negShrinkFactor = 0.5;
 
             float rotateFactor = 0.25 * sin(uTime) / 2.0 + 1.0;
             float testFactor = 0.75 * cos((uTime / 3.0) - 1.5) + 0.75;
@@ -222,14 +213,20 @@ const App = () => {
             // vec3 scaledPosition = (position);
             vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
             // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            vec3 rotatePosition = vec3(mix(rotatedPos.x, avg.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, avg.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, avg.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = vec3(mix(rotatedPos.x, avg.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, avg.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, avg.z, min(1.0, shrinkFactor)));
+            // vec3 rotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, shrinkFactor)));
+            vec3 rotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, shrinkFactor)));
             // vec3 rotatePosition = rotatedPos;
+            vec3 negRotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, negShrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, negShrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, negShrinkFactor)));
             // rotatePosition.xy = rotatePosition.xy * rotateFactor;
-            rotatePosition = rotatePosition * max(1.0, testFactor);
+            // rotatePosition = rotatePosition * max(1.0, testFactor);
             vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
             if(avg.x > 1.5) {
               mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
               // mvPosition = modelViewMatrix * vec4(rotatePosition, 1.0);
+              if(avg.y < 0.0) {
+                mvPosition = modelViewMatrix * transform * vec4(negRotatePosition, 1.0);
+              }
             } 
             gl_Position = projectionMatrix * mvPosition;
           }
