@@ -1,7 +1,7 @@
 import {useState, useRef, useMemo} from "react";
 import {createRoot} from "react-dom/client";
 import {Canvas, extend, useFrame} from "@react-three/fiber";
-import {Edges, OrbitControls} from "@react-three/drei";
+import {Edges, OrbitControls, Line} from "@react-three/drei";
 import * as THREE from "three";
 import {gsap} from "gsap";
 // import geodesicPolyhedron from "./geodesicPolyhedron";
@@ -33,6 +33,11 @@ const App = () => {
     // [-1.07, 1.07, 1.07],
     // [-1.43, 0.53, 1.09],
   ]);
+
+  const [vectorView, setVectorView] = useState({
+    start: [0, 0, 0],
+    vector: [1, 1, 1],
+  });
 
   const [incIdx, setIncIdx] = useState(0);
 
@@ -98,136 +103,11 @@ const App = () => {
           varying vec3 vPosition;
           varying vec3 vNormal;
 
-          mat4 rotateX(float theta) {
-            float c = cos(theta);
-            float s = sin(theta);
-            return mat4(
-              vec4(1,0,0,0),
-              vec4(0,c,-s, 0),
-              vec4(0,s,c, 0),
-              vec4(0,0,0,1)
-            );
-          }
-
-          mat4 rotateY(float theta) {
-            float c = cos(theta);
-            float s = sin(theta);
-            return mat4(
-              vec4(c, 0, s, 0),
-              vec4(0,1,0, 0),
-              vec4(-s, 0, c, 0),
-              vec4(0,0,0,1)
-            );
-          }
-
-          mat4 rotateZ(float theta) {
-            float c = cos(theta);
-            float s = sin(theta);
-            return mat4(
-              vec4(c, -s, 0, 0),
-              vec4(s, c, 0, 0),
-              vec4(0,0,1,0),
-              vec4(0,0,0,1)
-            );
-          }
-
-          mat3 testRotation(float theta) {
-            float c = cos(theta);
-            float s = sin(theta);
-            return mat3(
-              c, -s, 0,
-              s, c, 0,
-              0, 0, 1
-            );
-          }
-
-          mat3 testRotateX(float theta) {
-            float c = cos(theta);
-            float s = sin(theta);
-            return mat3(
-              vec3(1,0,0),
-              vec3(0,c,-s),
-              vec3(0,s,c)
-            );
-          }
-
-          mat4 rotateArbitrary(float theta, float X, float Y, float Z) {
-            float c = cos(theta);
-            float s = sin(theta);
-            float t = 1.0 - cos(theta);
-
-            return mat4(
-              vec4(t*X*X + c, t*X*Y - s*Z, t*X*Z + s*Y, 0),
-              vec4(t*X*Y + s*Z, t*Y*Y + c, t*Y*Z - s*X, 0),
-              vec4(t*X*Z - s*Y, t*Y*Z + s*X, t*Z*Z + c, 0),
-              vec4(0,0,0,1)
-            );
-          }
-
-          vec3 getRotatePos(float theta) {
-            vec3 rotatedPos = testRotation(theta) * (position - avg);
-            rotatedPos = rotatedPos + avg;
-            if(rotatedPos.x <= position.x) {
-              rotatedPos.x = position.x;
-              // rotatedPos.y = position.y;
-              // rotatedPos.z = position.z;
-            }
-            return rotatedPos;
-          }
-
+          
           void main () {
             vPosition = position;
             vNormal = normal;
-
-            float maxVal = max(abs(vPosition.x), abs(vPosition.y));
-            maxVal = max(abs(vPosition.z), maxVal);
-
-            // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-            // float shrinkFactor = 0.75 * cos(uTime / 3.0) + 0.75;
-            float shrinkFactor = sin(uTime) + 1.0;
-            // float negShrinkFactor = -sin((uTime)) + 1.0;
-            float negShrinkFactor = 0.5;
-
-            float rotateFactor = 0.25 * sin(uTime) / 2.0 + 1.0;
-            float testFactor = 0.75 * cos((uTime / 3.0) - 1.5) + 0.75;
-            // rotateFactor = rotateFactor*maxVal;
-            float sign = 1.0;
-            if(avg.y < 0.0) {
-              sign = -1.0;
-            }
-
-            // vec3 rotatedPos = testRotation(sin(uTime) / 3.5) * (position - avg);
-            // rotatedPos = rotatedPos + avg;
-
-            vec3 rotatedPos = getRotatePos(sin(uTime));
-
-            vec3 zRotPos = testRotation(0.25) * (position - avg) + avg;
-            
-
-            mat4 transformX = rotateX(0.0);
-            mat4 transformY = rotateY(0.0);
-            mat4 transformZ = rotateZ(0.0);
-            mat4 transform = transformX * transformY * transformZ;
-            // mat4 transform = rotateArbitrary(sin(uTime), avg.x, avg.y, avg.z);
-            
-            // vec3 scaledPosition = (position);
-            vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = vec3(mix(position.x, avg.x + rotateFactor, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = vec3(mix(rotatedPos.x, avg.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, avg.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, avg.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, shrinkFactor)));
-            vec3 rotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, shrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, shrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, shrinkFactor)));
-            // vec3 rotatePosition = rotatedPos;
-            vec3 negRotatePosition = vec3(mix(rotatedPos.x, vPosition.x, min(1.0, negShrinkFactor)), mix(rotatedPos.y, vPosition.y, min(1.0, negShrinkFactor)), mix(rotatedPos.z, vPosition.z, min(1.0, negShrinkFactor)));
-            // rotatePosition.xy = rotatePosition.xy * rotateFactor;
-            // rotatePosition = rotatePosition * max(1.0, testFactor);
             vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
-            if(avg.x > 1.5) {
-              mvPosition = modelViewMatrix * transform * vec4(rotatePosition, 1.0);
-              // mvPosition = modelViewMatrix * vec4(rotatePosition, 1.0);
-              if(avg.y < 0.0) {
-                mvPosition = modelViewMatrix * transform * vec4(negRotatePosition, 1.0);
-              }
-            } 
             gl_Position = projectionMatrix * mvPosition;
           }
           `,
@@ -560,7 +440,6 @@ const App = () => {
   const test = async () => {
     console.log(meshRef.current);
     console.log(meshRef.current.geometry);
-    console.log(edgesRef.current);
     const pos = meshRef.current.geometry.getAttribute("position");
     const maxPos = Math.max(...pos.array);
     console.log(maxPos);
@@ -748,6 +627,10 @@ const App = () => {
     );
   };
 
+  const LineComp = ({vector, start}) => {
+    return <Line points={[start, vector]} color="black" lineWidth={2} />;
+  };
+
   const calculateTiming = async (time, meshRef, materialIdx) => {
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
@@ -808,6 +691,25 @@ const App = () => {
     setCoordinates(tempCoords);
   };
 
+  const calculateVector = async () => {
+    const shape = await getGroupVertexCoords(
+      meshRef.current.geometry.groups[3]
+    );
+    const pos1 = shape[0];
+    const pos2 = shape[1];
+    const avg = await getAvgCoords(meshRef.current.geometry.groups[3]);
+    const start = [avg.x, avg.y, avg.z];
+
+    const vec1 = [pos1[0] - avg.x, pos1[1] - avg.y, pos1[2] - avg.z];
+    const vec2 = [pos2[0] - avg.x, pos2[1] - avg.y, pos2[2] - avg.z];
+    const vector = [
+      vec1[1] * vec2[2] - vec1[2] * vec2[1],
+      vec1[2] * vec2[0] - vec1[0] * vec2[2],
+      vec1[0] * vec2[1] - vec1[1] * vec2[0],
+    ];
+    setVectorView({start: start, vector: vector});
+  };
+
   return (
     <>
       <div className="text">
@@ -819,6 +721,7 @@ const App = () => {
         <button onClick={() => animationTest()}>Animate</button>
         <button onClick={() => highlightFace([0, 3, 6])}>Inc</button>
         <button onClick={() => testFunc()}>Temp Func</button>
+        <button onClick={() => calculateVector()}>calculateVector</button>
       </div>
       <div id="canvas-container" className="canvas-container">
         <Canvas>
@@ -857,6 +760,7 @@ const App = () => {
           {coordinates.map((coord, idx) => (
             <Circle coords={coord} key={idx} circleRef={circleRef} />
           ))}
+          <LineComp start={vectorView.start} vector={vectorView.vector} />
           <ambientLight intensity={0.1} />
           <directionalLight color="red" position={[0, 0, 5]} />
           {/* <mesh className="mesh">
