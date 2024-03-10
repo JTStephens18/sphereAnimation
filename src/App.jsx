@@ -181,8 +181,8 @@ const App = () => {
               vUv = uv;
               vPosition = position;
               vNormal = normal;
-              // float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-              float shrinkFactor = 0.75 * cos(3.0 * uTime) + 0.75;
+              float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+              // float shrinkFactor = 0.75 * cos(3.0 * uTime) + 0.75;
               
               // vec3 scaledPosition = (position);
               // vec3 scaledPosition = vec3(mix(position.x, avg.x, max(0.0005, shrinkFactor)), mix(position.y, avg.y, max(0.0005, shrinkFactor)), mix(position.z, avg.z, max(.0005, shrinkFactor)));
@@ -631,6 +631,79 @@ const App = () => {
     return <Line points={[start, vector]} color="black" lineWidth={2} />;
   };
 
+  const Cube = () => {
+    const boxRef = useRef();
+
+    useFrame(() => {
+      const time = clock.getElapsedTime();
+      boxRef.current.material.uniforms.uTime.value = time;
+    });
+
+    const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+    // const boxMaterial = new THREE.MeshBasicMaterial({
+    //   color: "green",
+    //   side: THREE.DoubleSide,
+    //   wireframe: true,
+    // });
+    const boxMaterial = new ShaderMaterial({
+      vertexShader: `
+        varying vec3 vNormal;
+        uniform float uTime;
+        // uniform float idx;
+        uniform vec3 avg;
+        varying vec3 vPosition;
+
+        vec3 getRotatePos(vec3 pos, float angle) {
+          mat3 cMatrix = mat3(
+            vec3(0, -pos.z, pos.y),
+            vec3(pos.z, 0, -pos.x),
+            vec3(-pos.y, pos.x, 0)
+          );
+          mat3 identityMatrix = mat3(
+            vec3(1, 0, 0),
+            vec3(0, 1, 0),
+            vec3(0, 0, 1)
+          );
+
+          mat3 rotatePos = mat3(1.0) + (sin(angle) * cMatrix) + ((1.0 - cos(angle)) * (cMatrix * cMatrix));
+          vec3 newPos = rotatePos * pos;
+          return newPos;
+        }
+
+        void main () {
+          vPosition = position;
+          vNormal = normal;
+          vec3 axis = vec3(0.0, 1.0, 0.0);
+          vec3 rotatePos = getRotatePos(axis, uTime);
+          float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+          vec3 newPos = vec3(mix(avg.x, rotatePos.x, max(1.0, shrinkFactor)), mix(avg.y, rotatePos.y, max(1.0, shrinkFactor)), mix(avg.z, rotatePos.z, max(1.0, shrinkFactor)));
+          vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+          if(vPosition.y > 0.0) {
+            mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+          }
+          gl_Position = projectionMatrix * mvPosition;
+      }
+      `,
+      fragmentShader: `
+      void main () {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      }
+      `,
+      uniforms: {
+        uTime: {value: 1.0},
+        avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
+      },
+      side: THREE.DoubleSide,
+      wireframe: true,
+    });
+    const box = new THREE.Mesh(boxGeometry, boxMaterial);
+    return (
+      <group>
+        <primitive object={box} ref={boxRef} />
+      </group>
+    );
+  };
+
   const calculateTiming = async (time, meshRef, materialIdx) => {
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
@@ -714,14 +787,14 @@ const App = () => {
     <>
       <div className="text">
         {/* <h1>TEST TEXT</h1> */}
-        <button onClick={() => test()}>Test</button>
+        {/* <button onClick={() => test()}>Test</button>
         <button onClick={() => removeFaces()}>Remove</button>
         <button onClick={() => group()}>Group</button>
         <button onClick={() => changePosition()}>change</button>
         <button onClick={() => animationTest()}>Animate</button>
         <button onClick={() => highlightFace([0, 3, 6])}>Inc</button>
         <button onClick={() => testFunc()}>Temp Func</button>
-        <button onClick={() => calculateVector()}>calculateVector</button>
+        <button onClick={() => calculateVector()}>calculateVector</button> */}
       </div>
       <div id="canvas-container" className="canvas-container">
         <Canvas>
@@ -737,7 +810,7 @@ const App = () => {
             edgesRef={edgesRef}
             materialIdx={1}
           />
-          <GeodesicPolyhedron
+          {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
             color={0x00ff00}
@@ -746,7 +819,7 @@ const App = () => {
             meshRef={meshRef2}
             edgesRef={edgesRef2}
             materialIdx={2}
-          />
+          /> */}
           {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
@@ -757,6 +830,7 @@ const App = () => {
             edgesRef={edgesRef}
             materialIdx={-1}
           /> */}
+          <Cube />
           {coordinates.map((coord, idx) => (
             <Circle coords={coord} key={idx} circleRef={circleRef} />
           ))}
