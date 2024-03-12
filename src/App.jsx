@@ -25,6 +25,7 @@ import {AxesHelper} from "three";
 const App = () => {
   const meshRef = useRef();
   const edgesRef = useRef();
+  const boxRef = useRef();
 
   const circleRef = useRef();
 
@@ -36,7 +37,7 @@ const App = () => {
 
   const [vectorView, setVectorView] = useState({
     start: [0, 0, 0],
-    vector: [1, 1, 1],
+    vector: [1, 1, 0],
   });
 
   const [incIdx, setIncIdx] = useState(0);
@@ -67,7 +68,7 @@ const App = () => {
       // edgesRef.current.rotation.x += rotationSpeed;
       // edgesRef.current.rotation.y += rotationSpeed;
       const time = clock.getElapsedTime();
-      // meshRef.current.material[1].uniforms.uTime.value = time;
+      meshRef.current.material[1].uniforms.uTime.value = time;
       // meshRef.current.material[2].uniforms.uTime.value = time;
       // edgesRef.current.material.uniforms.uTime.value = time;
       // meshRef.current.material[3].uniforms.uTime.value = time;
@@ -107,7 +108,18 @@ const App = () => {
           void main () {
             vPosition = position;
             vNormal = normal;
+            float shrinkFactor = sin(uTime / 2.0) + 1.025;
+            float testFactor = cos(uTime) + 1.025;
+    // *********************************************
+        // This scales the face to the avg position
+            vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+        // This multipication scales the face outside of the original position
+            scaledPosition = scaledPosition * max(1.0, testFactor);
             vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+            // vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
+            if(avg.x > 1.0) {
+              mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
+            }
             gl_Position = projectionMatrix * mvPosition;
           }
           `,
@@ -226,8 +238,65 @@ const App = () => {
           depthWrite: false,
         });
 
+        const rotandshrinktestMaterial = new ShaderMaterial({
+          vertexShader: `
+            varying vec3 vNormal;
+            uniform float uTime;
+            // uniform float idx;
+            uniform vec3 avg;
+            varying vec3 vPosition;
+    
+            vec3 getRotatePos(vec3 pos, vec3 axis, float angle) {
+              mat3 cMatrix = mat3(
+                vec3(0, -axis.z, axis.y),
+                vec3(axis.z, 0, -axis.x),
+                vec3(-axis.y, axis.x, 0)
+              );
+              mat3 identityMatrix = mat3(
+                vec3(1, 0, 0),
+                vec3(0, 1, 0),
+                vec3(0, 0, 1)
+              );
+    
+              mat3 rotatePos = mat3(1.0) + (sin(angle) * cMatrix) + ((1.0 - cos(angle)) * (cMatrix * cMatrix));
+              vec3 newPos = rotatePos * pos;
+              return newPos;
+            }
+    
+            void main () {
+              vPosition = position;
+              vNormal = normal;
+              vec3 axis = vec3(0.0, 1.0, 0.0);
+              vec3 test = vec3(1.0, 1.0, 0.0);
+              float degree = (uTime / 1000.0) * 360.0;
+              vec3 rotatePos = getRotatePos(position, axis, degree);
+              float shrinkFactor = 0.25 * sin(uTime) + 1.025;
+              vec3 scaledPos = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+              vec3 newPos = vec3(mix(scaledPos.x, rotatePos.x, min(1.0, shrinkFactor)), mix(scaledPos.y, rotatePos.y, min(1.0, shrinkFactor)), mix(scaledPos.z, rotatePos.z, min(1.0, shrinkFactor)));
+              vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+              // vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+              if(vPosition.y > 0.0) {
+                mvPosition = modelViewMatrix * vec4(scaledPos, 1.0);
+              }
+              gl_Position = projectionMatrix * mvPosition;
+          }
+          `,
+          fragmentShader: `
+          void main () {
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+          }
+          `,
+          uniforms: {
+            uTime: {value: 1.0},
+            avg: {value: {x: 0.0, y: 0.0, z: 0.0}},
+          },
+          side: THREE.DoubleSide,
+          wireframe: true,
+        });
+
         if (materialIdx == 1) {
           materials.push(shrinkMaterial);
+          // materials.push(rotandshrinktestMaterial);
         }
 
         icosahedronGeometry.needsUpdate = true;
@@ -570,7 +639,7 @@ const App = () => {
     // setCoordinates(coordsStorage);
   };
 
-  const getGroupVertexCoords = async (group) => {
+  const getGroupVertexCoords = async (group, meshRef) => {
     const mesh = meshRef.current;
     const geometry = mesh.geometry;
     const position = geometry.getAttribute("position");
@@ -584,8 +653,8 @@ const App = () => {
     return shape;
   };
 
-  const getAvgCoords = async (group) => {
-    const shape = await getGroupVertexCoords(group);
+  const getAvgCoords = async (group, meshRef) => {
+    const shape = await getGroupVertexCoords(group, meshRef);
     let averages = {x: 0, y: 0, z: 0};
     for (let i = 0; i < shape.length; i++) {
       const x = shape[i][0];
@@ -631,12 +700,14 @@ const App = () => {
     return <Line points={[start, vector]} color="black" lineWidth={2} />;
   };
 
-  const Cube = () => {
-    const boxRef = useRef();
+  const Cube = (boxRef) => {
+    boxRef = boxRef.boxRef;
+    console.log(boxRef);
 
     useFrame(() => {
       const time = clock.getElapsedTime();
       boxRef.current.material.uniforms.uTime.value = time;
+      // calculateTiming(time, boxRef, 0);
     });
 
     const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
@@ -653,11 +724,11 @@ const App = () => {
         uniform vec3 avg;
         varying vec3 vPosition;
 
-        vec3 getRotatePos(vec3 pos, float angle) {
+        vec3 getRotatePos(vec3 pos, vec3 axis, float angle) {
           mat3 cMatrix = mat3(
-            vec3(0, -pos.z, pos.y),
-            vec3(pos.z, 0, -pos.x),
-            vec3(-pos.y, pos.x, 0)
+            vec3(0, -axis.z, axis.y),
+            vec3(axis.z, 0, -axis.x),
+            vec3(-axis.y, axis.x, 0)
           );
           mat3 identityMatrix = mat3(
             vec3(1, 0, 0),
@@ -673,13 +744,17 @@ const App = () => {
         void main () {
           vPosition = position;
           vNormal = normal;
-          vec3 axis = vec3(0.0, 1.0, 0.0);
-          vec3 rotatePos = getRotatePos(axis, uTime);
+          vec3 axis = vec3(1.0, 0.0, 0.0);
+          vec3 rotatePos = getRotatePos(position, axis, uTime);
           float shrinkFactor = 0.25 * sin(uTime) + 1.025;
-          vec3 newPos = vec3(mix(avg.x, rotatePos.x, max(1.0, shrinkFactor)), mix(avg.y, rotatePos.y, max(1.0, shrinkFactor)), mix(avg.z, rotatePos.z, max(1.0, shrinkFactor)));
+          float testFactor = 0.75 * cos((uTime / 3.0) - 1.5) + 0.75;
+          vec3 scaledPos = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
+          vec3 newPos = vec3(mix(avg.x, rotatePos.x, min(1.0, shrinkFactor)), mix(avg.y, rotatePos.y, min(1.0, shrinkFactor)), mix(avg.z, rotatePos.z, min(1.0, shrinkFactor)));
           vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+          // vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
           if(vPosition.y > 0.0) {
-            mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+            scaledPos = scaledPos * max(1.0, testFactor);
+            mvPosition = modelViewMatrix * vec4(scaledPos, 1.0);
           }
           gl_Position = projectionMatrix * mvPosition;
       }
@@ -707,13 +782,14 @@ const App = () => {
   const calculateTiming = async (time, meshRef, materialIdx) => {
     const groups = meshRef.current.geometry.groups;
     for (let i = 0; i < groups.length; i++) {
-      const mid = await getAvgCoords(groups[i]);
+      const mid = await getAvgCoords(groups[i], meshRef);
       meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
       // if (materialIdx == 1) {
       //   meshRef.current.material[i].uniforms.uTime.value = time + mid.y / 3.0;
       // } else {
       //   meshRef.current.material[i].uniforms.uTime.value = time;
       // }
+
       if (mid.y > 1.5) {
         meshRef.current.material[i].uniforms.avg.value = mid;
         groups[i].materialIndex = i;
@@ -800,7 +876,7 @@ const App = () => {
         <Canvas>
           <OrbitControls />
           <axesHelper args={[5]} />
-          <GeodesicPolyhedron
+          {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
             color={0x00ff00}
@@ -809,8 +885,8 @@ const App = () => {
             meshRef={meshRef}
             edgesRef={edgesRef}
             materialIdx={1}
-          />
-          {/* <GeodesicPolyhedron
+          /> */}
+          <GeodesicPolyhedron
             radius={2}
             detail={1}
             color={0x00ff00}
@@ -819,7 +895,7 @@ const App = () => {
             meshRef={meshRef2}
             edgesRef={edgesRef2}
             materialIdx={2}
-          /> */}
+          />
           {/* <GeodesicPolyhedron
             radius={2}
             detail={1}
@@ -830,7 +906,7 @@ const App = () => {
             edgesRef={edgesRef}
             materialIdx={-1}
           /> */}
-          <Cube />
+          {/* <Cube boxRef={boxRef} /> */}
           {coordinates.map((coord, idx) => (
             <Circle coords={coord} key={idx} circleRef={circleRef} />
           ))}
