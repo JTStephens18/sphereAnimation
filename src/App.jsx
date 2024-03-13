@@ -104,22 +104,43 @@ const App = () => {
           varying vec3 vPosition;
           varying vec3 vNormal;
 
+          vec3 getRotatePos(vec3 pos, vec3 axis, float angle) {
+            mat3 cMatrix = mat3(
+              vec3(0, -axis.z, axis.y),
+              vec3(axis.z, 0, -axis.x),
+              vec3(-axis.y, axis.x, 0)
+            );
+            mat3 identityMatrix = mat3(
+              vec3(1, 0, 0),
+              vec3(0, 1, 0),
+              vec3(0, 0, 1)
+            );
+  
+            mat3 rotatePos = mat3(1.0) + (sin(angle) * cMatrix) + ((1.0 - cos(angle)) * (cMatrix * cMatrix));
+            vec3 newPos = rotatePos * pos;
+            return newPos;
+          }
+
           
           void main () {
             vPosition = position;
             vNormal = normal;
             float shrinkFactor = sin(uTime / 2.0) + 1.025;
             float testFactor = cos(uTime) + 1.025;
+        // Rotate ***
+            vec3 axis = vec3(1.0, 1.0, 1.0);
+            vec3 rotatePos = getRotatePos(position, axis, uTime);
+            vec3 newPos = vec3(mix(avg.x, rotatePos.x, min(1.0, shrinkFactor)), mix(avg.y, rotatePos.y, min(1.0, shrinkFactor)), mix(avg.z, rotatePos.z, min(1.0, shrinkFactor)));
     // *********************************************
         // This scales the face to the avg position
             vec3 scaledPosition = vec3(mix(position.x, avg.x, min(1.0, shrinkFactor)), mix(position.y, avg.y, min(1.0, shrinkFactor)), mix(position.z, avg.z, min(1.0, shrinkFactor)));
         // This multipication scales the face outside of the original position
             scaledPosition = scaledPosition * max(1.0, testFactor);
-            vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
-            // vec4 mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
-            if(avg.x > 1.0) {
-              mvPosition = modelViewMatrix * vec4(scaledPosition, 1.0);
-            }
+            // vec4 mvPosition = modelViewMatrix * vec4(vPosition, 1.0);
+            vec4 mvPosition = modelViewMatrix * vec4(scaledPosition + newPos, 1.0);
+            // if(avg.x > 1.0) {
+            //   mvPosition = modelViewMatrix * vec4(scaledPosition + newPos, 1.0);
+            // }
             gl_Position = projectionMatrix * mvPosition;
           }
           `,
